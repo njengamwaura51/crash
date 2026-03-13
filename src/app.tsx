@@ -8,23 +8,25 @@ import propeller from "./assets/images/propeller.png";
 import Context from "./context";
 // import "./App.scss";
 
+const errorBannerStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: '10px',
+  right: '10px',
+  background: '#ff4444',
+  color: 'white',
+  padding: '8px 16px',
+  borderRadius: '4px',
+  zIndex: 9999,
+  fontSize: '12px',
+};
+
 function App() {
   const { unityLoading, currentProgress, rechargeState, errorBackend } =
     React.useContext(Context);
   return (
     <div className="main-container">
       {errorBackend && (
-        <div style={{
-          position: 'fixed',
-          top: '10px',
-          right: '10px',
-          background: '#ff4444',
-          color: 'white',
-          padding: '8px 16px',
-          borderRadius: '4px',
-          zIndex: 9999,
-          fontSize: '12px'
-        }}>
+        <div style={errorBannerStyle}>
           ⚠️ Connection to server lost
         </div>
       )}

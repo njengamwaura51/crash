@@ -136,7 +136,7 @@ export default function PerfectLiveChat() {
                 ).length;
                 let userName = displayName(item.userName);
                 return (
-                  <div key={index} className="message-wrapper ng-star-inserted">
+                  <div key={item._id} className="message-wrapper ng-star-inserted">
                     <div className="avatar-block">
                       <img
                         className="avatar"

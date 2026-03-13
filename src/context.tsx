@@ -171,20 +171,25 @@ export const Provider = ({ children }: any) => {
     });
 
     socket.on("myBetState", (user: UserType) => {
-      const attrs = userBetState;
-      attrs.fbetState = false;
-      attrs.fbetted = user.f.betted;
-      attrs.sbetState = false;
-      attrs.sbetted = user.s.betted;
-      setUserBetState(attrs);
+      setUserBetState(prev => ({
+        ...prev,
+        fbetState: false,
+        fbetted: user.f.betted,
+        sbetState: false,
+        sbetted: user.s.betted,
+      }));
     });
 
     socket.on("myInfo", (user: UserType) => {
-      let attrs = state;
-      attrs.userInfo.balance = user.balance;
-      attrs.userInfo.userType = user.userType;
-      attrs.userInfo.userName = user.userName;
-      update(attrs);
+      setState(prev => ({
+        ...prev,
+        userInfo: {
+          ...prev.userInfo,
+          balance: user.balance,
+          userType: user.userType,
+          userName: user.userName,
+        },
+      }));
     });
 
     socket.on("history", (history: any) => {
@@ -288,10 +293,10 @@ export const Provider = ({ children }: any) => {
     });
 
     socket.on("error", (data) => {
-      setUserBetState({
-        ...userBetState,
+      setUserBetState(prev => ({
+        ...prev,
         [`${data.index}betted`]: false,
-      });
+      }));
       toast.error(data.message);
     });
 

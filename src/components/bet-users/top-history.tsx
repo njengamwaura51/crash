@@ -8,6 +8,8 @@ const TopHistory = () => {
   const [history, setHistory] = React.useState([]);
   const [loadingEffect, setLoadingEffect] = React.useState(false);
 
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const callDate = async (date: string) => {
     try {
       setLoadingEffect(true);
@@ -15,19 +17,26 @@ const TopHistory = () => {
       if (response.ok) {
         const data = await response.json();
         setHistory(data.data);
-        setTimeout(() => {
+        timeoutRef.current = setTimeout(() => {
           setLoadingEffect(false);
         }, 500);
       } else {
         console.log(`HTTP error! status: ${response.status}`);
+        setLoadingEffect(false);
       }
     } catch (error: any) {
       console.log("callDate", error);
+      setLoadingEffect(false);
     }
   };
   useEffect(() => {
     // Request of Day data
     callDate("day");
+    return () => {
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
   return (
     <>
