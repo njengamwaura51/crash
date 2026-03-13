@@ -15,29 +15,58 @@ const GLOW_CRASHED       = "rgba(255,68,68,0.3)";
 
 interface Point { x: number; y: number; }
 
+/**
+ * Project a (multiplier, elapsedMs) world point to canvas pixel coordinates.
+ * X is linear in elapsed time; Y is logarithmic in the multiplier so that
+ * low values (1×–5×) and high values (50×+) are both legible at once.
+ *
+ * @param maxMultiplier - the current Y-axis ceiling (grows dynamically)
+ */
 function worldToCanvas(
   multiplier: number,
   elapsedMs: number,
-  crashPoint: number,
+  maxMultiplier: number,
   canvasW: number,
   canvasH: number,
   pad: number
 ): Point {
   const innerW = canvasW - pad * 2;
-  const innerH = canvasH - pad * 2;
 
   // X: linear in elapsed time (capped at max domain)
   const maxTime = 15_000; // ms
   const xFrac = Math.min(elapsedMs / maxTime, 1);
   const x = pad + xFrac * innerW;
 
-  // Y: logarithmic so we can show both 1× and 100× on the same canvas
-  const logM   = Math.log(multiplier);
-  const logMax = Math.log(Math.max(crashPoint, 10));
-  const yFrac  = Math.min(logM / logMax, 1);
-  const y = canvasH - pad - yFrac * innerH;
+  // Y: logarithmic – delegate to shared helper
+  const y = multiplierToY(multiplier, maxMultiplier, canvasH, pad);
 
   return { x, y };
+}
+
+/**
+ * Compute sensible Y-axis tick multipliers given the current max.
+ * Ticks are at round "nice" values: 1, 1.5, 2, 3, 5, 10, 20, 50, 100, 200.
+ */
+function yAxisTicks(maxMultiplier: number): number[] {
+  const candidates = [1, 1.5, 2, 3, 5, 10, 20, 50, 100, 200];
+  return candidates.filter((t) => t <= maxMultiplier);
+}
+
+/**
+ * Convert a multiplier value to a canvas Y pixel given the current axis ceiling.
+ * Shared by worldToCanvas and the axis-label renderer to ensure consistency.
+ */
+function multiplierToY(
+  multiplier: number,
+  maxMultiplier: number,
+  canvasH: number,
+  pad: number
+): number {
+  const innerH = canvasH - pad * 2;
+  const logM   = Math.log(Math.max(multiplier, 1));
+  const logMax = Math.log(Math.max(maxMultiplier, 2));
+  const yFrac  = Math.min(logM / logMax, 1);
+  return canvasH - pad - yFrac * innerH;
 }
 
 /** Number of decorative stars rendered on the Flight Arena backdrop */
@@ -51,21 +80,36 @@ const FlightArena: React.FC = () => {
   const {
     phase,
     multiplier,
-    crashPoint,
     elapsedMs,
     waitCountdown,
     history,
   } = useMockContext();
 
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
-  const planeRef     = useRef<HTMLImageElement>(null);
-  const pathRef      = useRef<HistoryItem[]>([]);
-  const frameRef     = useRef<number>(0);
-  const phaseRef     = useRef(phase);
-  const crashPointRef = useRef(crashPoint);
+  const canvasRef      = useRef<HTMLCanvasElement>(null);
+  const planeRef       = useRef<HTMLImageElement>(null);
+  const pathRef        = useRef<HistoryItem[]>([]);
+  const frameRef       = useRef<number>(0);
+  const phaseRef       = useRef(phase);
+  /** Dynamic Y-axis ceiling – grows as the multiplier climbs, never shrinks mid-round */
+  const dynamicMaxRef  = useRef(5);
+  /** Cached plane dimensions to avoid layout reflow on every animation frame */
+  const planeDimsRef   = useRef({ w: 64, h: 64 });
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
-  useEffect(() => { crashPointRef.current = crashPoint; }, [crashPoint]);
+
+  // Update the dynamic Y-ceiling based on phase and current multiplier
+  useEffect(() => {
+    if (phase === "WAITING_FOR_BETS" || phase === "TAKING_OFF") {
+      // Reset at the start of each round
+      dynamicMaxRef.current = 5;
+    } else if (phase === "FLYING" || phase === "CRASHED") {
+      // Grow with 50 % headroom; never shrink mid-round
+      const needed = multiplier * 1.5;
+      if (needed > dynamicMaxRef.current) {
+        dynamicMaxRef.current = needed;
+      }
+    }
+  }, [phase, multiplier]);
 
   // Accumulate path points while flying
   useEffect(() => {
@@ -122,27 +166,83 @@ const FlightArena: React.FC = () => {
     ctx.arc(PAD, H - PAD, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    if (phaseRef.current === "WAITING_FOR_BETS" || phaseRef.current === "TAKING_OFF") return;
+    if (phaseRef.current === "WAITING_FOR_BETS" || phaseRef.current === "TAKING_OFF") {
+      // During TAKING_OFF show the plane sitting at the origin
+      if (planeRef.current && phaseRef.current === "TAKING_OFF") {
+        const { w, h } = planeDimsRef.current;
+        planeRef.current.style.left      = `${PAD - w / 2}px`;
+        planeRef.current.style.top       = `${H - PAD - h / 2}px`;
+        planeRef.current.style.transform = "rotate(-20deg)";
+      }
+      return;
+    }
 
-    const crashed = phaseRef.current === "CRASHED";
+    const crashed   = phaseRef.current === "CRASHED";
     const lineColor = crashed ? LINE_COLOR_CRASHED : LINE_COLOR_FLYING;
     const glowColor = crashed ? GLOW_CRASHED : GLOW_FLYING;
+    const yMax      = dynamicMaxRef.current;
 
-    // Build path
+    // ── Axis labels ────────────────────────────────────────────────────────
+    const innerW = W - PAD * 2;
+
+    ctx.save();
+    ctx.font = "bold 10px monospace";
+    ctx.textBaseline = "middle";
+
+    // Y-axis multiplier labels + subtle horizontal guide lines
+    const ticks = yAxisTicks(yMax);
+    for (const tick of ticks) {
+      const yPx = multiplierToY(tick, yMax, H, PAD);
+
+      // Horizontal guide line
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth   = 1;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.moveTo(PAD, yPx);
+      ctx.lineTo(W - PAD, yPx);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Label
+      ctx.fillStyle   = "rgba(255,255,255,0.28)";
+      ctx.textAlign   = "right";
+      ctx.fillText(`${tick}×`, PAD - 6, yPx);
+    }
+
+    // X-axis time labels (every 5 s up to 15 s)
+    ctx.textBaseline = "top";
+    ctx.textAlign    = "center";
+    ctx.fillStyle    = "rgba(255,255,255,0.22)";
+    const maxTime = 15_000;
+    for (let t = 5_000; t <= maxTime; t += 5_000) {
+      const xPx = PAD + (t / maxTime) * innerW;
+      ctx.fillText(`${t / 1000}s`, xPx, H - PAD + 5);
+    }
+    ctx.restore();
+
+    // ── Build path ────────────────────────────────────────────────────────
     const pts: Point[] = pathRef.current.map((p) =>
-      worldToCanvas(p.multiplier, p.elapsed, crashPointRef.current, W, H, PAD)
+      worldToCanvas(p.multiplier, p.elapsed, yMax, W, H, PAD)
     );
 
     if (pts.length < 2) return;
 
-    // Glow shadow
+    // ── Glow shadow ───────────────────────────────────────────────────────
     ctx.shadowColor = lineColor;
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur  = 18;
 
-    // Fill area under curve
+    // ── Fill area under curve ─────────────────────────────────────────────
     ctx.beginPath();
     ctx.moveTo(PAD, H - PAD);
-    pts.forEach((p) => ctx.lineTo(p.x, p.y));
+    // Use smooth quadratic bezier (mid-point algorithm) for fill
+    ctx.lineTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2;
+      const my = (pts[i].y + pts[i + 1].y) / 2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+    }
+    ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
     ctx.lineTo(pts[pts.length - 1].x, H - PAD);
     ctx.closePath();
     const fillGrad = ctx.createLinearGradient(PAD, H - PAD, PAD, PAD);
@@ -151,15 +251,18 @@ const FlightArena: React.FC = () => {
     ctx.fillStyle = fillGrad;
     ctx.fill();
 
-    // Curve line
+    // ── Smooth curve line ─────────────────────────────────────────────────
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i].x, pts[i].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2;
+      const my = (pts[i].y + pts[i + 1].y) / 2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
     }
+    ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
     ctx.strokeStyle = lineColor;
-    ctx.lineWidth = 3;
-    ctx.lineJoin = "round";
+    ctx.lineWidth   = 3;
+    ctx.lineJoin    = "round";
     ctx.stroke();
 
     ctx.shadowBlur = 0;
@@ -173,8 +276,14 @@ const FlightArena: React.FC = () => {
 
     // Update plane position
     if (planeRef.current && !crashed) {
-      const planeW = planeRef.current.offsetWidth;
-      const planeH = planeRef.current.offsetHeight;
+      // Cache plane dimensions on first access to avoid per-frame reflows
+      if (planeRef.current.offsetWidth > 0) {
+        planeDimsRef.current = {
+          w: planeRef.current.offsetWidth,
+          h: planeRef.current.offsetHeight,
+        };
+      }
+      const { w: planeW, h: planeH } = planeDimsRef.current;
       planeRef.current.style.left  = `${tip.x - planeW / 2}px`;
       planeRef.current.style.top   = `${tip.y - planeH / 2}px`;
 
