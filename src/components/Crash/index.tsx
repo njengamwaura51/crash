@@ -47,7 +47,7 @@ export default function WebGLStarter() {
 
 			myInterval = setInterval(() => {
 				setWaiting(Date.now() - startWaiting);
-			}, 20);
+			}, 100);
 		}
 		return () => clearInterval(myInterval);
 	}, [GameState, unityState])

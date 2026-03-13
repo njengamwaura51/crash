@@ -6,6 +6,8 @@ export default function History() {
   const [showHistory, setShowHistory] = React.useState(false);
   const historyItemsContainerRef = React.useRef<HTMLDivElement>(null);
 
+  const reversedHistory = React.useMemo(() => history.slice().reverse(), [history]);
+
   React.useEffect(() => {
     if (historyItemsContainerRef.current && history.length > 0) {
       const container = historyItemsContainerRef.current;
@@ -27,7 +29,7 @@ export default function History() {
       <div className="history-bar">
         <div className="history-content">
           <div className="history-items-container" ref={historyItemsContainerRef}>
-            {history.slice().reverse().map((item, key) => {
+            {reversedHistory.map((item, key) => {
               const num = parseFloat(item);
               const color = num < 2 ? '#00ffff' : num <= 10 ? '#c80000' : '#ff69b4';
               return (
@@ -53,7 +55,7 @@ export default function History() {
           {history.length === 0 ? (
             <div style={{ color: '#666', fontSize: '12px' }}>No rounds yet</div>
           ) : (
-            history.slice().reverse().map((item, key) => {
+            reversedHistory.map((item, key) => {
               const num = parseFloat(item);
               const className = num < 2 ? 'low' : num <= 10 ? 'mid' : 'high';
               return (

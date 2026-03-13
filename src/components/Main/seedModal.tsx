@@ -19,10 +19,7 @@ export const SeedModal = ({ setModal, modalParam }: any) => {
         const localTime = newDate.toLocaleTimeString([], { hour12: false });
         setDate(localTime);
 
-        let combined_seed = data.serverSeed;
-        for (let i = 0; i < data.seedOfUsers.length; i++) {
-            combined_seed += data.seedOfUsers[i].seed
-        }
+        const combined_seed = [data.serverSeed, ...data.seedOfUsers.map((u: any) => u.seed)].join('');
         const hash_object = CryptoJS.SHA512(combined_seed).toString(CryptoJS.enc.Hex);
         setSha512Hash(hash_object);
     }
