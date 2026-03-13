@@ -3,7 +3,6 @@ import React from "react";
 // import { useCrashContext } from "../Main/context";
 import "./crash.scss";
 import Unity from "react-unity-webgl";
-import propeller from "../../assets/images/propeller.png"
 import Context from "../../context";
 
 let currentFlag = 0;
@@ -116,7 +115,11 @@ export default function WebGLStarter() {
 		if (GameState === "PLAYING" && planeRef.current && target > 1) {
 			const maxX = 430;
 			const maxY = 260;
-			const progress = (target - 1.0) / (parseFloat(currentNum) - 1.0 || 1);
+			// Use log scale so small multipliers move the plane more visibly,
+			// and cap at 1 so the plane stays within bounds.
+			const crashPoint = parseFloat(currentNum);
+			const denominator = crashPoint > 1 ? crashPoint - 1.0 : 10;
+			const progress = Math.min((target - 1.0) / denominator, 1);
 			const x = maxX * progress;
 			const y = -maxY * progress;
 			const rot = -25 * progress;
@@ -150,8 +153,8 @@ export default function WebGLStarter() {
 							className="loading-fill" 
 							id="fill"
 							style={{ 
-								width: showLoading ? `${(5000 - waiting) * 100 / 5000}%` : '0%',
-								animation: showLoading ? 'loadingRightToLeft 5s linear forwards' : 'none'
+								width: showLoading ? `${Math.max(0, (5000 - waiting) * 100 / 5000)}%` : '0%',
+								transition: showLoading ? 'width 0.1s linear' : 'none'
 							}}
 						></div>
 					</div>

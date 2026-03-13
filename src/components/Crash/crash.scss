@@ -2,13 +2,243 @@
   box-sizing: border-box;
 }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
+/* ─── Crash Game Canvas ─── */
+
+.crash-container {
+  position: relative;
   width: 100%;
   height: 100%;
 }
+
+.space-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at 60% 80%, #1a1060 0%, #0a0518 60%, #050210 100%);
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Stars */
+.star {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+@keyframes zoomOut {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  15% {
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-110vh) scale(1.4);
+  }
+}
+
+/* Plane */
+.plane {
+  position: absolute;
+  width: 72px;
+  height: 54px;
+  bottom: 40px;
+  left: 40px;
+  opacity: 0;
+  z-index: 10;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(100, 180, 255, 0.7));
+  transition: opacity 0.3s ease;
+
+  &.visible {
+    opacity: 1;
+  }
+}
+
+/* Flew-away text */
+.flew-away {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ff4444;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  text-shadow: 0 0 24px rgba(255, 68, 68, 0.9), 0 2px 8px rgba(0, 0, 0, 0.8);
+  transition: opacity 0.25s ease;
+
+  &.show {
+    opacity: 1;
+    animation: flyAwayPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+}
+
+@keyframes flyAwayPop {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0;
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Multiplier display */
+.multiplier {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 58px;
+  font-weight: 900;
+  color: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.4), 0 2px 12px rgba(0, 0, 0, 0.7);
+  letter-spacing: 1px;
+  z-index: 8;
+  transition: color 0.2s ease, opacity 0.25s ease;
+
+  @media (max-width: 600px) {
+    font-size: 40px;
+  }
+
+  &.show {
+    opacity: 1;
+  }
+
+  &.crashed {
+    color: #ff4444;
+    text-shadow: 0 0 40px rgba(255, 68, 68, 0.9), 0 2px 12px rgba(0, 0, 0, 0.8);
+    animation: crashPulse 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+}
+
+@keyframes crashPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1.4);
+  }
+  60% {
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Center logo */
+.center-logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+
+  img {
+    width: 130px;
+    max-width: 40%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 20px rgba(200, 160, 255, 0.35));
+    animation: logoFloat 3s ease-in-out infinite;
+  }
+
+  &.hide {
+    opacity: 0;
+  }
+}
+
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Loading bar (BET phase countdown) */
+.loading-container {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 68%;
+  max-width: 340px;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+
+  &.show-loading {
+    opacity: 1;
+  }
+
+  .loading-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    overflow: hidden;
+
+    .loading-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff3a3a 0%, #ff8c00 100%);
+      border-radius: 3px;
+      width: 100%;
+      transform-origin: left center;
+    }
+  }
+
+  .loading-text {
+    margin-top: 7px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+}
+
+/* Graph grid lines */
+.space-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Legacy styles ─── */
 
 .canvas {
   width: 100%;
