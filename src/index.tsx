@@ -5,17 +5,17 @@ import 'react-toastify/dist/ReactToastify.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import './index.scss';
-import App from './app';
-import { Provider } from './context';
+import GameApp from './components/GameApp';
+import { MockProvider } from './mockContext';
 
 createRoot(document.getElementById("root") as HTMLElement).render(
 	<BrowserRouter>
 		<Routes>
 			<Route path="*" element={
-				<Provider>
-					<App />
+				<MockProvider>
+					<GameApp />
 					<ToastContainer position="top-center" theme="dark" />
-				</Provider>
+				</MockProvider>
 			} />
 		</Routes>
 	</BrowserRouter>

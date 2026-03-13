@@ -1,0 +1,381 @@
+/* ── Control Center ──────────────────────────────────────────────────────── */
+
+.control-center {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  height: 100%;
+}
+
+/* Balance row */
+.cc-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.cc-balance__label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cc-balance__value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #00ffcc;
+}
+
+/* Panel layout */
+.cc-panels {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  flex-wrap: wrap;
+}
+
+/* Individual panel */
+.cc-panel {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(15, 8, 40, 0.75);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  transition: border-color 0.3s ease;
+
+  &--active {
+    border-color: rgba(0, 255, 200, 0.35);
+  }
+
+  &--cashout {
+    border-color: rgba(0, 255, 100, 0.5);
+  }
+
+  &--lost {
+    border-color: rgba(255, 68, 68, 0.4);
+  }
+}
+
+.cc-panel__header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Field */
+.cc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cc-field__label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cc-field__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Spinner */
+.cc-spinner {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  overflow: hidden;
+
+  &--slim {
+    height: 32px;
+  }
+}
+
+.cc-spinner__btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 38px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(255,255,255,0.08);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.cc-spinner__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  padding: 0 4px;
+  min-width: 0;
+
+  &:read-only {
+    opacity: 0.65;
+  }
+}
+
+.cc-spinner__suffix {
+  padding-right: 8px;
+  color: rgba(255,255,255,0.45);
+  font-size: 13px;
+}
+
+/* Quick bet buttons */
+.cc-quick-bets {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.cc-quick-bet {
+  flex: 1;
+  min-width: 36px;
+  padding: 4px 2px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.75);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(0,255,200,0.12);
+    border-color: rgba(0,255,200,0.4);
+    color: #00ffcc;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+/* Toggle switch */
+.cc-toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+
+  &--on {
+    background: rgba(0, 255, 200, 0.25);
+    border-color: rgba(0, 255, 200, 0.5);
+
+    .cc-toggle__knob {
+      transform: translateX(18px);
+      background: #00ffcc;
+    }
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.cc-toggle__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+
+/* Action area */
+.cc-action {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: auto;
+}
+
+/* Result banners */
+.cc-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+
+  &--win {
+    background: rgba(0, 220, 100, 0.15);
+    border: 1px solid rgba(0, 220, 100, 0.35);
+    color: #00dc64;
+  }
+
+  &--loss {
+    background: rgba(255, 68, 68, 0.12);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    color: #ff6b6b;
+  }
+}
+
+.cc-result__amount {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* Main buttons */
+.cc-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  transition: transform 0.1s, box-shadow 0.15s, filter 0.15s;
+  gap: 2px;
+
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  &--bet {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(34, 197, 94, 0.35);
+
+    &:hover {
+      box-shadow: 0 6px 24px rgba(34, 197, 94, 0.5);
+      filter: brightness(1.08);
+    }
+  }
+
+  &--cashout {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #000;
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+    animation: cc-cashout-pulse 1.2s ease-in-out infinite;
+
+    &:hover {
+      box-shadow: 0 6px 28px rgba(245, 158, 11, 0.6);
+      filter: brightness(1.08);
+    }
+  }
+
+  &--cancel {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7);
+
+    &:hover {
+      background: rgba(255,255,255,0.13);
+    }
+  }
+
+  &--waiting {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.4);
+    cursor: not-allowed;
+    animation: cc-waiting-blink 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes cc-cashout-pulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4); }
+  50%       { box-shadow: 0 4px 36px rgba(245, 158, 11, 0.75); }
+}
+
+@keyframes cc-waiting-blink {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+.cc-btn__label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.cc-btn__amount {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* Potential win hint */
+.cc-potential {
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  text-align: center;
+}
+
+/* Add/remove second bet */
+.cc-add-bet {
+  align-self: flex-start;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+
+  &:hover {
+    border-color: rgba(0,255,200,0.4);
+    color: #00ffcc;
+  }
+
+  &--remove {
+    border-color: rgba(255,68,68,0.3);
+    color: rgba(255,68,68,0.7);
+
+    &:hover {
+      border-color: rgba(255,68,68,0.6);
+      color: #ff6b6b;
+    }
+  }
+}
