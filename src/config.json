@@ -5,5 +5,5 @@
     "production_api": "https://domain.crash.games/api",
     "production_wss": "https://domain.crash.games",
     "development_api": "http://localhost:5001/api",
-    "development_wss": "https://domain.crash.games"
+    "development_wss": "http://localhost:5000"
 }

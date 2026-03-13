@@ -30,7 +30,7 @@ export default function History() {
         <div className="history-content">
           <div className="history-items-container" ref={historyItemsContainerRef}>
             {reversedHistory.map((item, key) => {
-              const num = parseFloat(item);
+              const num = Number(item);
               const color = num < 2 ? '#00ffff' : num <= 10 ? '#c80000' : '#ff69b4';
               return (
                 <span key={key} className="history-item" style={{ color }}>
@@ -56,7 +56,7 @@ export default function History() {
             <div style={{ color: '#666', fontSize: '12px' }}>No rounds yet</div>
           ) : (
             reversedHistory.map((item, key) => {
-              const num = parseFloat(item);
+              const num = Number(item);
               const className = num < 2 ? 'low' : num <= 10 ? 'mid' : 'high';
               return (
                 <div key={key} className={`popup-item ${className}`}>

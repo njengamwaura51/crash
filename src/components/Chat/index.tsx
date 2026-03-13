@@ -24,7 +24,10 @@ export default function PerfectLiveChat() {
   const [msgContent, setMsgContent] = useState<string>("");
   const [emojiPicker, setEmojiPicker] = useState<boolean>(false);
   const [gifPicker, setGifPicker] = useState<boolean>(false);
-  const tenorApiKey = "AIzaSyAgrtott_iV2sRi-9cH_BKAdLKxpzbsIJY";
+  const tenorApiKey = process.env.REACT_APP_TENOR_API_KEY || "";
+  if (!tenorApiKey) {
+    console.warn("REACT_APP_TENOR_API_KEY is not set. GIF picker will not work.");
+  }
 
   const msgContentRef = useRef(null);
 
