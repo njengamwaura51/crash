@@ -50,9 +50,6 @@ let fDecreaseAmount = 0;
 let sIncreaseAmount = 0;
 let sDecreaseAmount = 0;
 
-let newState;
-let newBetState;
-
 export const Provider = ({ children }: any) => {
   const token = new URLSearchParams(useLocation().search).get("cert");
   const [state, setState] = React.useState<ContextDataType>(sharedInitState);
@@ -68,7 +65,9 @@ export const Provider = ({ children }: any) => {
   const [fLoading, setFLoading] = React.useState<boolean>(false);
   const [sLoading, setSLoading] = React.useState<boolean>(false);
 
-  newState = state;
+  const stateRef = React.useRef(state);
+  React.useEffect(() => { stateRef.current = state; }, [state]);
+
   const [unity, setUnity] = React.useState({
     unityState: false,
     unityLoading: false,
@@ -83,7 +82,7 @@ export const Provider = ({ children }: any) => {
 
   const [bettedUsers, setBettedUsers] = React.useState<BettedUserType[]>([]);
   const update = (attrs: Partial<ContextDataType>) => {
-    setState({ ...state, ...attrs });
+    setState(prev => ({ ...prev, ...attrs }));
   };
   const [previousHand, setPreviousHand] = React.useState<UserType[]>([]);
   const [history, setHistory] = React.useState<number[]>([]);
@@ -93,11 +92,12 @@ export const Provider = ({ children }: any) => {
     sbetState: false,
     sbetted: false,
   });
-  newBetState = userBetState;
+  const betStateRef = React.useRef(userBetState);
+  React.useEffect(() => { betStateRef.current = userBetState; }, [userBetState]);
   const [rechargeState, setRechargeState] = React.useState(false);
   const [currentTarget, setCurrentTarget] = React.useState(0);
   const updateUserBetState = (attrs: Partial<UserStatusType>) => {
-    setUserBetState({ ...userBetState, ...attrs });
+    setUserBetState(prev => ({ ...prev, ...attrs }));
   };
 
   const [betLimit, setBetLimit] = React.useState<GameBetLimit>({
@@ -205,83 +205,89 @@ export const Provider = ({ children }: any) => {
     });
 
     socket.on("finishGame", (user: UserType) => {
-      let attrs = newState;
-      let fauto = attrs.userInfo.f.auto;
-      let sauto = attrs.userInfo.s.auto;
-      let fbetAmount = attrs.userInfo.f.betAmount;
-      let sbetAmount = attrs.userInfo.s.betAmount;
-      let betStatus = newBetState;
-      attrs.userInfo = user;
-      attrs.userInfo.f.betAmount = fbetAmount;
-      attrs.userInfo.s.betAmount = sbetAmount;
-      attrs.userInfo.f.auto = fauto;
-      attrs.userInfo.s.auto = sauto;
+      const prevState = stateRef.current;
+      const prevBetState = betStateRef.current;
+
+      const fauto = prevState.userInfo.f.auto;
+      const sauto = prevState.userInfo.s.auto;
+      const fbetAmount = prevState.userInfo.f.betAmount;
+      const sbetAmount = prevState.userInfo.s.betAmount;
+
+      // Build new userInfo from server data while preserving client-side values
+      const newUserInfo: UserType = {
+        ...user,
+        f: { ...user.f, betAmount: fbetAmount, auto: fauto },
+        s: { ...user.s, betAmount: sbetAmount, auto: sauto },
+      };
+
+      const newBetStatus = { ...prevBetState };
+
       if (!user.f.betted) {
-        betStatus.fbetted = false;
-        if (attrs.userInfo.f.auto) {
+        newBetStatus.fbetted = false;
+        if (fauto) {
           if (user.f.cashouted) {
             fIncreaseAmount += user.f.cashAmount;
-            if (attrs.finState && attrs.fincrease - fIncreaseAmount <= 0) {
-              attrs.userInfo.f.auto = false;
-              betStatus.fbetState = false;
+            if (prevState.finState && prevState.fincrease - fIncreaseAmount <= 0) {
+              newUserInfo.f.auto = false;
+              newBetStatus.fbetState = false;
               fIncreaseAmount = 0;
             } else if (
-              attrs.fsingle &&
-              attrs.fsingleAmount <= user.f.cashAmount
+              prevState.fsingle &&
+              prevState.fsingleAmount <= user.f.cashAmount
             ) {
-              attrs.userInfo.f.auto = false;
-              betStatus.fbetState = false;
+              newUserInfo.f.auto = false;
+              newBetStatus.fbetState = false;
             } else {
-              attrs.userInfo.f.auto = true;
-              betStatus.fbetState = true;
+              newUserInfo.f.auto = true;
+              newBetStatus.fbetState = true;
             }
           } else {
             fDecreaseAmount += user.f.betAmount;
-            if (attrs.fdeState && attrs.fdecrease - fDecreaseAmount <= 0) {
-              attrs.userInfo.f.auto = false;
-              betStatus.fbetState = false;
+            if (prevState.fdeState && prevState.fdecrease - fDecreaseAmount <= 0) {
+              newUserInfo.f.auto = false;
+              newBetStatus.fbetState = false;
               fDecreaseAmount = 0;
             } else {
-              attrs.userInfo.f.auto = true;
-              betStatus.fbetState = true;
+              newUserInfo.f.auto = true;
+              newBetStatus.fbetState = true;
             }
           }
         }
       }
       if (!user.s.betted) {
-        betStatus.sbetted = false;
-        if (user.s.auto) {
+        newBetStatus.sbetted = false;
+        if (sauto) {
           if (user.s.cashouted) {
             sIncreaseAmount += user.s.cashAmount;
-            if (attrs.sinState && attrs.sincrease - sIncreaseAmount <= 0) {
-              attrs.userInfo.s.auto = false;
-              betStatus.sbetState = false;
+            if (prevState.sinState && prevState.sincrease - sIncreaseAmount <= 0) {
+              newUserInfo.s.auto = false;
+              newBetStatus.sbetState = false;
               sIncreaseAmount = 0;
             } else if (
-              attrs.ssingle &&
-              attrs.ssingleAmount <= user.s.cashAmount
+              prevState.ssingle &&
+              prevState.ssingleAmount <= user.s.cashAmount
             ) {
-              attrs.userInfo.s.auto = false;
-              betStatus.sbetState = false;
+              newUserInfo.s.auto = false;
+              newBetStatus.sbetState = false;
             } else {
-              attrs.userInfo.s.auto = true;
-              betStatus.sbetState = true;
+              newUserInfo.s.auto = true;
+              newBetStatus.sbetState = true;
             }
           } else {
             sDecreaseAmount += user.s.betAmount;
-            if (attrs.sdeState && attrs.sdecrease - sDecreaseAmount <= 0) {
-              attrs.userInfo.s.auto = false;
-              betStatus.sbetState = false;
+            if (prevState.sdeState && prevState.sdecrease - sDecreaseAmount <= 0) {
+              newUserInfo.s.auto = false;
+              newBetStatus.sbetState = false;
               sDecreaseAmount = 0;
             } else {
-              attrs.userInfo.s.auto = true;
-              betStatus.sbetState = true;
+              newUserInfo.s.auto = true;
+              newBetStatus.sbetState = true;
             }
           }
         }
       }
-      update(attrs);
-      setUserBetState(betStatus);
+      setState(prev => ({ ...prev, userInfo: newUserInfo }));
+      setUserBetState(newBetStatus);
     });
 
     socket.on("getBetLimits", (betAmounts: { max: number; min: number }) => {
@@ -320,76 +326,74 @@ export const Provider = ({ children }: any) => {
   }, [socket]);
 
   React.useEffect(() => {
-    let attrs = state;
-    let betStatus = userBetState;
     if (gameState.GameState === "BET") {
-      if (betStatus.fbetState) {
+      if (userBetState.fbetState) {
         if (state.userInfo.f.auto) {
-          if (state.fautoCound > 0) attrs.fautoCound -= 1;
-          else {
-            attrs.userInfo.f.auto = false;
-            betStatus.fbetState = false;
+          if (state.fautoCound > 0) {
+            setState(prev => ({ ...prev, fautoCound: prev.fautoCound - 1 }));
+          } else {
+            setState(prev => ({
+              ...prev,
+              userInfo: { ...prev.userInfo, f: { ...prev.userInfo.f, auto: false } },
+            }));
+            setUserBetState(prev => ({ ...prev, fbetState: false }));
             return;
           }
         }
-        let data = {
+        const fData = {
           betAmount: state.userInfo.f.betAmount,
           target: state.userInfo.f.target,
           type: "f",
           auto: state.userInfo.f.auto,
         };
-        if (attrs.userInfo.balance - state.userInfo.f.betAmount < 0) {
+        if (state.userInfo.balance - state.userInfo.f.betAmount < 0) {
           toast.error("Your balance is not enough");
-          betStatus.fbetState = false;
-          betStatus.fbetted = false;
+          setUserBetState(prev => ({ ...prev, fbetState: false, fbetted: false }));
           return;
         }
-        attrs.userInfo.balance -= state.userInfo.f.betAmount;
-        socket.emit("playBet", data);
-        betStatus.fbetState = false;
-        betStatus.fbetted = true;
-        // update(attrs);
-        setUserBetState(betStatus);
+        socket.emit("playBet", fData);
+        setUserBetState(prev => ({ ...prev, fbetState: false, fbetted: true }));
       }
-      if (betStatus.sbetState) {
+      if (userBetState.sbetState) {
         if (state.userInfo.s.auto) {
-          if (state.sautoCound > 0) attrs.sautoCound -= 1;
-          else {
-            attrs.userInfo.s.auto = false;
-            betStatus.sbetState = false;
+          if (state.sautoCound > 0) {
+            setState(prev => ({ ...prev, sautoCound: prev.sautoCound - 1 }));
+          } else {
+            setState(prev => ({
+              ...prev,
+              userInfo: { ...prev.userInfo, s: { ...prev.userInfo.s, auto: false } },
+            }));
+            setUserBetState(prev => ({ ...prev, sbetState: false }));
             return;
           }
         }
-        let data = {
+        const sData = {
           betAmount: state.userInfo.s.betAmount,
           target: state.userInfo.s.target,
           type: "s",
           auto: state.userInfo.s.auto,
         };
-        if (attrs.userInfo.balance - state.userInfo.s.betAmount < 0) {
+        if (state.userInfo.balance - state.userInfo.s.betAmount < 0) {
           toast.error("Your balance is not enough");
-          betStatus.sbetState = false;
-          betStatus.sbetted = false;
+          setUserBetState(prev => ({ ...prev, sbetState: false, sbetted: false }));
           return;
         }
-        attrs.userInfo.balance -= state.userInfo.s.betAmount;
-        socket.emit("playBet", data);
-        betStatus.sbetState = false;
-        betStatus.sbetted = true;
-        // update(attrs);
-        setUserBetState(betStatus);
+        socket.emit("playBet", sData);
+        setUserBetState(prev => ({ ...prev, sbetState: false, sbetted: true }));
       }
     }
   }, [gameState.GameState, userBetState.fbetState, userBetState.sbetState]);
 
   const getMyBets = async () => {
+    const userName = stateRef.current.userInfo.userName;
+    if (!userName) return;
     try {
       const response = await fetch(`${config.api}/my-info`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: state.userInfo.userName }),
+        body: JSON.stringify({ name: userName }),
       });
 
       if (response.ok) {
@@ -477,7 +481,7 @@ export const Provider = ({ children }: any) => {
         sLoading,
         setSLoading,
         setCurrentTarget,
-        update: (attrs) => setState((prev) => ({ ...prev, ...attrs })),
+        update,
         updateUserInfo,
         getMyBets,
         updateUserBetState,
