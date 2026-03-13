@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect } from "react";
-import { UnityContext } from "react-unity-webgl";
 import { useLocation } from "react-router";
 import { io, Socket } from "socket.io-client";
 import { toast } from "react-toastify";
@@ -15,7 +15,6 @@ import {
   GameBetLimit,
   UserStatusType,
   GameStatusType,
-  LoadingType,
   SeedDetailsType,
   unityContext as sharedUnityContext,
   init_state as sharedInitState,
