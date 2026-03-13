@@ -23,12 +23,17 @@
  */
 
 import { Server as IOServer, Socket } from "socket.io";
-import { v4 as uuidv4 } from "uuid";
 import { gameEngine, EngineState } from "../engine/GameEngine";
-import User from "../models/User";
-import Bet from "../models/Bet";
 import Round from "../models/Round";
+import User from "../models/User";
 import { verifyToken } from "../middleware/auth";
+import {
+  atomicDeductBalance,
+  atomicRestoreBalance,
+  persistBet,
+  atomicCashoutBet,
+  settleLostBet,
+} from "../controllers/gameController";
 
 const MIN_BET = Number(process.env.MIN_BET) || 1;
 const MAX_BET = Number(process.env.MAX_BET) || 1000;
@@ -160,37 +165,27 @@ export function attachSocketHandlers(io: IOServer): void {
       cashAmount: number;
       multiplier: number;
     }) => {
-      // Credit winnings to user balance
-      await User.findOneAndUpdate(
-        { userId: data.userId },
-        { $inc: { balance: data.cashAmount } }
-      );
-
-      // Update the Bet document
-      await Bet.findOneAndUpdate(
-        {
-          userId: data.userId,
-          roundId: gameEngine.getState().roundId,
-          slot: data.slot,
-        },
-        { cashedOut: true, cashoutAt: data.multiplier, cashAmount: data.cashAmount }
-      );
+      // Atomically mark Bet as cashed out and credit balance.
+      // The DB-level `cashedOut: false` guard prevents double-credit if this
+      // event fires more than once for the same bet.
+      await atomicCashoutBet({
+        userId: data.userId,
+        roundId: gameEngine.getState().roundId,
+        slot: data.slot,
+        multiplier: data.multiplier,
+        cashAmount: data.cashAmount,
+      });
     }
   );
 
   gameEngine.on(
     "betLost",
     async (bet: { userId: string; slot: "f" | "s"; betAmount: number }) => {
-      await Bet.findOneAndUpdate(
-        {
-          userId: bet.userId,
-          roundId: gameEngine.getState().roundId,
-          slot: bet.slot,
-        },
-        {
-          cashedOut: false,
-          flyAway: gameEngine.getState().crashPoint,
-        }
+      await settleLostBet(
+        bet.userId,
+        gameEngine.getState().roundId,
+        bet.slot,
+        gameEngine.getState().crashPoint
       );
     }
   );
@@ -310,21 +305,25 @@ export function attachSocketHandlers(io: IOServer): void {
           return;
         }
 
-        // Check user balance
-        const user = await User.findOne({ userId: authenticatedUserId });
-        if (!user) {
-          socket.emit("error", { index: type, message: "User not found" });
-          return;
-        }
-        if (user.balance < betAmount) {
+        // ── Step 1: Atomically deduct balance from the database.
+        //   Uses findOneAndUpdate with { balance: { $gte: betAmount } } so the
+        //   balance check and deduction happen in a single DB operation.
+        //   This is the TOCTOU-safe replacement for findOne → check → save().
+        const deduct = await atomicDeductBalance(authenticatedUserId, betAmount);
+        if (!deduct.success) {
           socket.emit("error", {
             index: type,
-            message: "Insufficient balance",
+            message:
+              deduct.reason === "user_not_found"
+                ? "User not found"
+                : "Insufficient balance",
           });
           return;
         }
 
-        // Register bet in engine
+        // ── Step 2: Register bet in the in-memory engine.
+        //   If this fails (e.g. phase changed between check and now), roll back
+        //   the DB deduction immediately.
         const placed = gameEngine.placeBet(
           authenticatedUserId,
           type,
@@ -332,6 +331,8 @@ export function attachSocketHandlers(io: IOServer): void {
           target
         );
         if (!placed) {
+          // Roll back the balance deduction
+          await atomicRestoreBalance(authenticatedUserId, betAmount);
           socket.emit("error", {
             index: type,
             message: "Cannot place bet now — game is not in BET phase or slot taken",
@@ -339,26 +340,20 @@ export function attachSocketHandlers(io: IOServer): void {
           return;
         }
 
-        // Deduct balance
-        user.balance -= betAmount;
-        await user.save();
-
-        // Persist Bet to DB
+        // ── Step 3: Persist the bet record to the database.
         const roundId = gameEngine.getState().roundId;
-        await Bet.create({
-          betId: uuidv4(),
+        await persistBet({
           userId: authenticatedUserId,
           userName: authenticatedUserName || authenticatedUserId,
           roundId,
           slot: type,
           betAmount,
           target,
-          flyDetailID: roundId,
         });
 
-        // Acknowledge
+        // Acknowledge to the betting socket
         socket.emit("myBetState", {
-          balance: user.balance,
+          balance: deduct.user!.balance,
           f:
             type === "f"
               ? { betted: true, betAmount, target }
@@ -398,6 +393,8 @@ export function attachSocketHandlers(io: IOServer): void {
 
         const { type = "f", endTarget = 0 } = data;
 
+        // The engine applies the in-memory lock and records the authoritative
+        // server-side multiplier at the exact moment of the request.
         const result = gameEngine.cashOut(
           authenticatedUserId,
           type,
@@ -412,13 +409,25 @@ export function attachSocketHandlers(io: IOServer): void {
           return;
         }
 
-        // Balance update is handled via the engine "cashout" event listener above.
-        // Refetch fresh balance to emit to this client.
+        // Explicitly await the DB credit here so that the User.findOne below
+        // sees the final, post-credit balance.  atomicCashoutBet has a
+        // { cashedOut: false } guard, so if the engine "cashout" event listener
+        // already completed the update first, this call is a no-op and the
+        // balance was already credited.  Either way, the User.findOne query
+        // that follows will reflect the correct balance.
+        await atomicCashoutBet({
+          userId: authenticatedUserId,
+          roundId: gameEngine.getState().roundId,
+          slot: type,
+          multiplier: result.multiplier!,
+          cashAmount: result.cashAmount!,
+        });
+
         const user = await User.findOne({ userId: authenticatedUserId }).lean();
-        const newBalance = user ? user.balance : 0;
+        const newBalance = user?.balance ?? 0; // balance already includes cashAmount
 
         socket.emit("finishGame", {
-          balance: newBalance + (result.cashAmount || 0),
+          balance: newBalance,
           f:
             type === "f"
               ? {

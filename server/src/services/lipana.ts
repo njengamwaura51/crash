@@ -11,10 +11,9 @@ import axios from "axios";
 import crypto from "crypto";
 
 const BASE_URL = process.env.LIPANA_API_BASE_URL || "https://api.lipana.dev";
-const API_KEY = process.env.LIPANA_API_KEY;
 const WEBHOOK_SECRET = process.env.LIPANA_WEBHOOK_SECRET;
 
-if (!API_KEY) {
+if (!process.env.LIPANA_API_KEY) {
   console.warn(
     "⚠️  LIPANA_API_KEY is not set. Payment features will not work."
   );
@@ -22,11 +21,21 @@ if (!API_KEY) {
 
 const lipanaClient = axios.create({
   baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${API_KEY}`,
-  },
+  headers: { "Content-Type": "application/json" },
   timeout: 30_000,
+});
+
+/**
+ * Read the API key on every request rather than at module load time.
+ * This ensures the key is picked up even if the env var was set after
+ * the module was first imported (e.g. during tests).
+ */
+lipanaClient.interceptors.request.use((config) => {
+  const key = process.env.LIPANA_API_KEY;
+  if (key) {
+    config.headers.Authorization = `Bearer ${key}`;
+  }
+  return config;
 });
 
 export interface DepositRequest {
@@ -103,7 +112,10 @@ export async function initiateWithdrawal(
  * Verifies the HMAC-SHA256 signature on an incoming lipana.dev webhook.
  *
  * Lipana sends the signature as the `X-Lipana-Signature` header.
- * The signed payload is the raw request body.
+ * The signed payload is the raw request body (captured in index.ts).
+ *
+ * Returns false (rather than throwing) on any invalid-hex or length mismatch,
+ * so the caller can safely return 401 without an unhandled exception.
  */
 export function verifyWebhookSignature(
   rawBody: string,
@@ -113,13 +125,25 @@ export function verifyWebhookSignature(
     console.error("LIPANA_WEBHOOK_SECRET is not configured");
     return false;
   }
+
   const expected = crypto
     .createHmac("sha256", WEBHOOK_SECRET)
     .update(rawBody)
     .digest("hex");
-  // Constant-time comparison to prevent timing attacks
-  return crypto.timingSafeEqual(
-    Buffer.from(expected, "hex"),
-    Buffer.from(signatureHeader, "hex")
-  );
+
+  // Reject immediately if the lengths don't match — timingSafeEqual requires
+  // equal-length buffers and would throw otherwise.
+  if (expected.length !== signatureHeader.length) {
+    return false;
+  }
+
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expected, "hex"),
+      Buffer.from(signatureHeader, "hex")
+    );
+  } catch {
+    // Buffer.from throws on invalid hex strings
+    return false;
+  }
 }
